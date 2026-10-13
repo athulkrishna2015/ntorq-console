@@ -233,6 +233,43 @@ a test. Everything here is built with that in mind:
 
 ---
 
+## Documentation
+
+See `docs/` for additional material:
+
+- **Display geometry**: Screenshots showing the asymmetric text area — ten cells on line 1, twelve on line 2.
+- **Debug overlays**: SVG files that include the debug overlay text, confirming the line capacities.
+
+### Display geometry documentation
+
+The cluster's alpha-numeric display has two unequal text lines:
+
+| Line | Capacity | Example strings |
+|------|----------|-----------------|
+| Line 1 | 10 cells | `AFTER 900m`, `TAKE RIGHT`, `10Km 700m` |
+| Line 2 | 12 cells | `STAY SAME RD`, `DISTANCE REM`, `TAKE U-TURN` |
+
+**How the simulator models it:**
+
+- The SVG renders both lines with separate cell guides when debug overlay is enabled
+- `_wrap_to_cells()` wraps whole messages into line 1 then line 2
+- Starting at line 2 caps at 12 and reports overflow beyond that line
+- Dropped character count appears to the right of the second row
+
+**Screenshots in `docs/`:**
+
+- `dash.svg` and `final_dash.svg`: Debug overlay enabled, showing both line capacities
+- `dash2.svg` and `dash_final.svg`: Demonstrating the dropped-text marker when overflow occurs
+
+### Generated artifacts
+
+See `docs/CONVENTIONS.md` for:
+
+- SVG rendering conventions (colors, coordinates, icon meanings)
+- Test expectations and schema
+
+---
+
 ## Licence
 
 Non-commercial, matching TVSRideCompanion. Protocol facts and the maneuver table

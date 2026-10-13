@@ -153,7 +153,7 @@ def probe_environment() -> EnvironmentReport:
                 adapter_path = str(path)
                 adapter = bus.get_object("org.bluez", adapter_path)
                 props = dbus.Interface(adapter, "org.freedesktop.DBus.Properties")
-                adapter_name = str(props.Get("org.bluez.Adapter", "Alias"))
+                adapter_name = str(props.Get("org.bluez.Adapter1", "Alias"))
                 break
     except Exception as exc:  # noqa: BLE001
         problems.append(f"enumerating BlueZ failed: {exc}")
@@ -186,7 +186,7 @@ def _peripheral_problems(bus, adapter_path: str) -> list[str]:
 
         adapter = bus.get_object("org.bluez", adapter_path)
         props = dbus.Interface(adapter, "org.freedesktop.DBus.Properties")
-        powered = bool(props.Get("org.bluez.Adapter", "Powered"))
+        powered = bool(props.Get("org.bluez.Adapter1", "Powered"))
         if not powered:
             return [
                 "the adapter is powered off. Turn Bluetooth on "
@@ -426,7 +426,7 @@ class GattServer:
 
         adapter = self._bus.get_object("org.bluez", self._adapter_path)
         props = dbus.Interface(adapter, "org.freedesktop.DBus.Properties")
-        props.Set("org.bluez.Adapter", "Connectable", dbus.Boolean(True))
+        props.Set("org.bluez.Adapter1", "Connectable", dbus.Boolean(True))
 
         self._mainloop = GLib.MainLoop()
 
