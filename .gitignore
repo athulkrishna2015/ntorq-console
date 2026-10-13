@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Rendered previews. Regenerate with tools/preview.py; they are output, not
+# source, and a checked-in render goes stale the moment a layout changes -
+# which is worse than no render at all.
+*.svg.tmp
+preview/
+*.png.tmp
+
+# Anything captured from a real cluster. This repository never commits protocol
+# captures: they belong to the rider's own vehicle, and the frame logs contain
+# the cluster's MAC address and street names from its navigation history.
+captures/
+*.btsnoop_hci.log
+*.pcap
+*.pcapng
+session*.log
+tvsride*.log
+
+# Screenshots of the display are fine (no personal data) but are generated:
+# `ntorq-console render -o dash.svg` then a rasteriser. Kept out of history so
+# a rebuild does not leave a diff of noise.
+shots/
+*.heic
+*.HEIC
+
+# The owner's reference material. The manual and the photograph of the dash are
+# in TVSRideCompanion/ref/, which is gitignored there for containing a
+# registration number and a home location. Do not copy them here.
+ref/
+*.apk

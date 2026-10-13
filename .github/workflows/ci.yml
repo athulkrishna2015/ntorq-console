@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      # One version per job rather than a matrix: every version passing is not
+      # the point, the oldest supported one is. A matrix costs four times the
+      # minutes to find the same single incompatibility.
+      matrix:
+        python-version: ["3.11", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: The dash renders, and is well-formed
+        # A syntax error or a bad template literal in the renderer produces a
+        # page that looks fine until it is served, and CI is the only place that
+        # runs on every change.
+        run: |
+          python -m ntorq.cli render --scenario running --all-segments \
+            --overlay -o /tmp/dash.svg
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          ET.parse("/tmp/dash.svg")
+          print("dash.svg parses as XML")
+          PY
+
+      - name: Every scenario renders
+        # Fifteen one-line invocations rather than a loop over a list in one
+        # process: a failure names the scenario instead of aborting the run, and
+        # a scenario that throws at import time is as visible as one that
+        # renders blank.
+        run: |
+          for scenario in cold-start running city-traffic reserve-fuel \
+                           full-tank overheating phone-paired incoming-call \
+                           incoming-sms missed-calls bt-pair-mode \
+                           side-stand-down service-due park-and-lock \
+                           navigation-active; do
+            python -m ntorq.cli render --scenario "$scenario" \
+              -o "/tmp/$scenario.svg"
+            echo "  rendered $scenario"
+          done
+
+      - name: The page's script runs against the real markup
+        # The page is plain JavaScript with no build step, so nothing else
+        # type-checks it. `tools/dom_check.mjs` starts the server, runs the
+        # script against the served HTML, and checks that every switch posts
+        # its own name.
+        run: |
+          node --version
+          python -m ntorq.cli serve --port 8799 &
+          for _ in $(seq 1 20); do
+            if curl -sf http://127.0.0.1:8799/api/state > /dev/null; then
+              break
+            fi
+            sleep 0.5
+          done
+          node tools/dom_check.mjs http://127.0.0.1:8799/
+          kill %1 2>/dev/null || true
+
+  gatt-environment:
+    # Separate from the tests on purpose. A Bluetooth peripheral needs hardware
+    # and a working `bluetoothd`, neither of which a runner has, so the only
+    # thing that can be checked here is that the environment probe reports the
+    # situation accurately rather than raising - which is the part that matters,
+    # because it is what a developer reads when it will not start.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e '.[dev]'
+      - name: The environment probe reports rather than raises
+        run: |
+          python - <<'PY'
+          from ntorq.gatt.server import probe_environment
+
+          report = probe_environment()
+          assert isinstance(report.problems, list)
+          print(report.describe())
+          # A runner has no adapter with a GATT manager, so it must not claim
+          # to be usable. If this ever inverts, the probe has started reporting
+          # success it cannot back up.
+          assert not report.usable or report.adapter_path
+          print("probe reported a usable environment" if report.usable
+                else "probe correctly reported no peripheral support")
+          PY
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - name: Ruff
+        # Informational on the line-length rule: the source is annotated to its
+        # own 88 columns deliberately, and the annotation is in pyproject.
+        run: ruff check ntorq tests tools
+
+      - name: Compile every module
+        # Catches a file that only imports on one Python version.
+        run: python -m compileall -q ntorq tests tools

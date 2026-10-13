@@ -1,0 +1,65 @@
+[project]
+name = "ntorq-console"
+version = "0.1.0"
+description = "A digital clone of the TVS Ntorq instrument cluster: BLE peripheral, SVG dash, and a frame-level simulator for debugging TVSRideCompanion"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "CC-BY-NC-4.0" }
+
+# No runtime dependencies, deliberately.
+#
+# The GATT server needs dbus-python and the Bluetooth stack, and those are
+# system packages on every distribution this runs on - installing them into a
+# virtualenv either does nothing or shadows the system one and breaks the
+# connection to bluetoothd. Keeping the requirement out of the lockfile means
+# `pip install .` cannot quietly install a second copy of a D-Bus binding that
+# does not share the session bus.
+#
+# The whole simulator is pure Python on the standard library. That is not
+# asceticism: a debugging aid that has to resolve a dependency tree is a
+# debugging aid that will not run when the laptop is misbehaving, which is
+# exactly when it is needed.
+dependencies = []
+
+[project.optional-dependencies]
+# Only for running the tests. Kept optional so the runtime install stays empty.
+dev = ["pytest>=8"]
+
+[project.scripts]
+ntorq-console = "ntorq.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["ntorq", "ntorq.gatt", "ntorq.web"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+# The rules that matter here are the ones that catch a mistake rather than a
+# style: an unused import is usually a leftover from a refactor, and a bare
+# `except Exception` in this codebase has caused real bugs by swallowing a
+# failure that should have been reported.
+select = ["E", "F", "W", "B", "UP"]
+ignore = [
+    # Line length is handled by the formatter, and the long lines that remain
+    # are inside docstrings where they are more readable wrapped by hand.
+    "E501",
+    # Byte literals above 0x7F read better as `0xFF` than as `255`, and the
+    # protocol is a byte protocol.
+    "E741",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The preview tool adds the package directory to sys.path itself so it can be
+# run from a checkout without installing, which ruff reads as an unused import
+# pattern rather than as what it is.
+"tools/preview.py" = ["E402"]
