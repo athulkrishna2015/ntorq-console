@@ -235,7 +235,7 @@ class TestRendering:
 
     def test_the_overlay_reaches_the_rendered_output(self, app: ConsoleApp):
         app.command("switch", {"name": "debug-overlay", "value": True})
-        assert "10 cells x 2 rows" in app.svg()
+        assert "line 1 = 10 cells; line 2 = 12 cells" in app.svg()
 
     def test_the_snapshot_is_json_serialisable(self, app: ConsoleApp):
         json.dumps(app.snapshot())

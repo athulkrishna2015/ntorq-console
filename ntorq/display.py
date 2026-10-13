@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from . import pictograms
 from .cluster import (
     GAUGE_BARS,
-    TEXT_ROW_CELLS,
+    TEXT_ROW_CAPACITIES,
     TEXT_ROWS,
     ClusterState,
     Mode,
@@ -992,21 +992,19 @@ def _bottom_row(state: ClusterState, opt: RenderOptions) -> str:
     return "".join(parts)
 
 
-#: Where the text area starts, and how wide one character cell is. Ten cells
-#: of this pitch is the width the manual's display-test illustration shows.
+#: Where the text area starts, and how wide one character cell is. The
+#: individual line capacities are in `TEXT_ROW_CAPACITIES`.
 TEXT_X0 = 110.0
-TEXT_CELL = 46.0
+TEXT_CELL = 36.0
 TEXT_BASELINES = (318.0, 342.0)
 
 
 def _text_area(state: ClusterState, opt: RenderOptions) -> str:
-    """The alpha-numeric display: two rows of ten character cells.
+    """The alpha-numeric display: ten characters on line 1, twelve on line 2.
 
     This is the zone that matters most. The manual's display-test illustration
-    shows the grid at its real width, and a row is ten cells - narrower than the
-    seventeen characters TVSRideCompanion sends. The debug overlay draws the
-    cell grid so the difference is something you can see rather than something
-    in a comment.
+    shows two unequal lines: ten cells on line 1 and twelve on line 2. The
+    debug overlay draws the per-line cell grid so that difference is visible.
     """
     parts: list[str] = []
 
@@ -1034,7 +1032,8 @@ def _text_area(state: ClusterState, opt: RenderOptions) -> str:
     lines, dropped = _wrap_to_cells(message)
 
     for row in range(TEXT_ROWS):
-        text = lines[row][:TEXT_ROW_CELLS] if row < len(lines) else ""
+        capacity = TEXT_ROW_CAPACITIES[row]
+        text = lines[row][:capacity] if row < len(lines) else ""
         parts.append(
             segment_text(
                 text,
@@ -1055,7 +1054,7 @@ def _text_area(state: ClusterState, opt: RenderOptions) -> str:
     # sits above the first row instead when the top row is empty, so it is not
     # drawn over the text itself.
     if dropped:
-        note_x = TEXT_X0 + TEXT_CELL * TEXT_ROW_CELLS + 6
+        note_x = TEXT_X0 + TEXT_CELL * max(TEXT_ROW_CAPACITIES) + 6
         if not lines or not lines[0]:
             note_y = TEXT_BASELINES[1]
         else:
@@ -1074,7 +1073,7 @@ def _text_area(state: ClusterState, opt: RenderOptions) -> str:
     if opt.show_debug_overlay:
         # Below the gauges, where nothing else sits, so the annotation cannot be
         # mistaken for a cluster element.
-        note = f"text area: {TEXT_ROW_CELLS} cells x {TEXT_ROWS} rows"
+        note = "line 1 = 10 cells; line 2 = 12 cells"
         if dropped:
             note += f"; {dropped} character(s) have nowhere to go"
         parts.append(
@@ -1084,38 +1083,38 @@ def _text_area(state: ClusterState, opt: RenderOptions) -> str:
     return "".join(parts)
 
 
-def _wrap_to_cells(text: str) -> list[str]:
-    """Split a message across the cluster's two text rows.
+def _wrap_to_cells(text: str, *, start_line: int = 0) -> tuple[list[str], int]:
+    """Split a message across line 1 (10 cells) and line 2 (12 cells).
 
-    The cluster has to do this itself: 'CALL FROM 9863571861' is twenty
-    characters and the area holds twenty. Word wrapping is used because a
-    number split across a row boundary would be unreadable, and because every
-    message the manual lists is short enough to fit whole.
+    The display has unequal line widths. Word wrapping keeps a phone number
+    intact where possible; excess after both line capacities is reported.
 
-    Anything past the twentieth character is **dropped**, and how many
-    characters that was is returned with the lines so the display can say so.
+    If the sender targets line 2 directly, anything past twelve characters is
+    dropped. Whole-message mode reports overflow beyond both lines' capacity.
     A message too long for the dash is a fact about the cluster, not something
     to paper over with a marquee: the thing that matters when debugging is
     whether the phone is sending more text than the display has room for, and
     scrolling it away would hide the finding rather than report it.
     """
+    if not 0 <= start_line < TEXT_ROWS:
+        raise ValueError(f"start_line must be in 0..{TEXT_ROWS - 1}")
     if not text:
         return [], 0
     lines: list[str] = []
     remaining = text
-    while remaining:
-        if len(lines) >= TEXT_ROWS:
-            # Both rows are full. Whatever is left has nowhere to go.
-            break
-        if len(remaining) <= TEXT_ROW_CELLS:
+    line_index = start_line
+    while remaining and line_index < TEXT_ROWS:
+        capacity = TEXT_ROW_CAPACITIES[line_index]
+        if len(remaining) <= capacity:
             lines.append(remaining)
             remaining = ""
             break
-        cut = remaining.rfind(" ", 0, TEXT_ROW_CELLS + 1)
+        cut = remaining.rfind(" ", 0, capacity + 1)
         if cut <= 0:
-            cut = TEXT_ROW_CELLS
+            cut = capacity
         lines.append(remaining[:cut].rstrip())
         remaining = remaining[cut:].lstrip()
+        line_index += 1
     return lines, len(remaining)
 
 

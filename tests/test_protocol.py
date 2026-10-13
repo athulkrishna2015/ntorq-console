@@ -20,7 +20,9 @@ from ntorq.cluster import (
     FUEL_HALF_L,
     FUEL_RESERVE_L,
     GAUGE_BARS,
+    TEXT_AREA_CAPACITY,
     TEXT_ROW_CELLS,
+    TEXT_ROW_CAPACITIES,
     TEXT_ROWS,
 )
 
@@ -235,34 +237,31 @@ class TestFuel:
 
 
 class TestTextArea:
-    def test_text_area_is_ten_cells_by_two_rows(self):
-        """Counted off the segment grid in the manual's display-test
-        illustration."""
+    def test_text_area_has_ten_cells_on_line_one_and_twelve_on_line_two(self):
+        """Measured per-line geometry supplied from the manual reference."""
         assert TEXT_ROW_CELLS == 10
         assert TEXT_ROWS == 2
-        assert TEXT_ROW_CELLS * TEXT_ROWS == 20
+        assert TEXT_ROW_CAPACITIES == (10, 12)
+        assert TEXT_AREA_CAPACITY == 22
 
-    def test_a_seventeen_character_row_overflows(self):
+    def test_a_seventeen_character_packet_exceeds_both_lines(self):
         """TVSRideCompanion's `PacketBuilder` sends 17 characters per text row.
-        The area holds ten, so seven characters per row have nowhere to go."""
+        Line one holds ten; line two holds twelve."""
         sent_by_app = 17
         assert sent_by_app > TEXT_ROW_CELLS
-        overflow_per_row = sent_by_app - TEXT_ROW_CELLS
-        assert overflow_per_row == 7
+        assert sent_by_app > TEXT_ROW_CAPACITIES[1]
+        assert sent_by_app - TEXT_ROW_CAPACITIES[0] == 7
 
     def test_cluster_messages_measured_against_the_area(self):
-        """Every message the manual lists, measured against twenty cells.
+        """Manual messages measured against the two unequal line capacities.
 
-        One of them does not fit, and that is worth stating rather than
-        rounding away. `CONNECTION SUCCESSFUL` is 21 characters. Either the
-        cluster scrolls it, or it abbreviates it on screen, or the text area is
-        in fact wider than the ten cells the segment grid shows. All three are
-        consistent with what is documented, and nothing observed settles it.
+        `CONNECTION SUCCESSFUL` is 21 characters. It fits the 22-cell total if
+        lines are filled 10 then 12, but the actual wrapping behavior remains
+        unverified.
 
-        This is the same question the app runs into from the other side: it
-        sends seventeen characters per row into a ten-cell area. The cluster
-        has solved this problem for its own messages somehow, and how it does
-        that is exactly what a capture would reveal.
+        A packet with 17 characters can fit only on line 2 without wrapping.
+        Whether the cluster moves it there or uses some other presentation is
+        exactly what a capture would reveal.
         """
         messages = [
             "FUEL EMPTY",
@@ -274,22 +273,15 @@ class TestTextArea:
             "CALL FROM 9863571861",
             "CONNECTION SUCCESSFUL",
         ]
-        capacity = TEXT_ROW_CELLS * TEXT_ROWS
+        capacity = TEXT_AREA_CAPACITY
 
-        # Seven of the eight fit, and one does not.
-        fitting = [m for m in messages if len(m) <= capacity]
-        assert len(fitting) == 7
+        # Every listed message fits the total nominal character capacity.
+        assert all(len(message) <= capacity for message in messages)
 
-        # The one that does not, recorded explicitly.
-        overflow = [m for m in messages if len(m) > capacity]
-        assert overflow == ["CONNECTION SUCCESSFUL"]
-        assert len(overflow[0]) - capacity == 1
-
-    def test_the_longest_fitting_cluster_message_fills_the_area_exactly(self):
-        """`CALL FROM 9863571861` is 20 characters, which is exactly what the
-        area holds. That the vendor's own longest message fills it to the
-        character is the strongest evidence the measured width is right."""
-        assert len("CALL FROM 9863571861") == TEXT_ROW_CELLS * TEXT_ROWS
+    def test_the_longest_example_fits_the_asymmetric_capacity(self):
+        """`CALL FROM 9863571861` is 20 characters, less than the 22 nominal
+        character cells when the two unequal lines are combined."""
+        assert len("CALL FROM 9863571861") <= TEXT_AREA_CAPACITY
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +346,7 @@ class TestDecodePhoneFrames:
 
     def test_seventeen_characters_is_flagged_as_at_the_row_limit(self):
         """The row is seventeen wide on the wire, which is *wider* than the
-        cluster's ten cells. The note exists so the two facts sit together."""
+        cluster's unequal line capacities. The note keeps those facts together."""
         raw = bytes([0x5B, 0x4F]) + b"A" * 17 + bytes([0xFF])
         frame = P.decode_phone_frame(raw)
         assert any("17 characters" in n for n in frame.notes)

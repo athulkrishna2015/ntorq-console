@@ -22,28 +22,16 @@ from . import protocol as P
 # Display geometry, measured off the manual's all-segments-on illustration
 # ---------------------------------------------------------------------------
 
-#: Character cells across one text row.
-#:
-#: Counted off the segment grid in the manual's illustration, where every
-#: segment is lit: the cells have a regular pitch and each row holds ten. There
-#: are two rows, twenty cells in all.
-#:
-#: Two independent checks support the figure. `CALL FROM 9863571861` - a real
-#: message the manual lists - is exactly twenty characters, which fills the area
-#: to the character. And the reference navigation implementation writes
-#: `850m`, `12km`, `45m` and `1h 20m` right-aligned into eleven-character
-#: strings, which is the width a single line is expected to hold.
-#:
-#: **The open question this creates.** TVSRideCompanion's `PacketBuilder` sends
-#: seventeen characters per row and treats the row as one seventeen-wide line.
-#: Seventeen does not fit in ten cells. Whether the cluster wraps it onto the
-#: second row, scrolls it, or truncates it is established by nothing that has
-#: been observed - and the simulator shows the wrapped result while saying how
-#: many characters had nowhere to go.
-TEXT_ROW_CELLS = 10
+#: Character cells on the two text lines, measured independently from the
+#: manual illustration and supplied by the project owner: line 1 has ten,
+#: line 2 has twelve. Do not model this as a uniform grid.
+TEXT_ROW_CAPACITIES = (10, 12)
+TEXT_ROWS = len(TEXT_ROW_CAPACITIES)
+#: Compatibility/name for the first-line capacity, which is the narrow line.
+TEXT_ROW_CELLS = TEXT_ROW_CAPACITIES[0]
 
-#: Rows in the text area, stacked, with the navigation pin beside the lower one.
-TEXT_ROWS = 2
+#: Total character capacity across both unequal lines.
+TEXT_AREA_CAPACITY = sum(TEXT_ROW_CAPACITIES)
 
 #: Bars in the fuel gauge and the engine-temperature gauge. The manual states
 #: six for each, in so many words, twice.

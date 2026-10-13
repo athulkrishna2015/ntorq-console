@@ -182,7 +182,7 @@ class TestRenderCommand:
     def test_render_flags_both_overlays_together(self, tmp_path):
         out = tmp_path / "dash.svg"
         assert main(["render", "--all-segments", "--overlay", "-o", str(out)]) == 0
-        assert "10 cells x 2 rows" in out.read_text()
+        assert "line 1 = 10 cells; line 2 = 12 cells" in out.read_text()
 
 
 class TestFramesCommand:

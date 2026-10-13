@@ -664,10 +664,9 @@ def decode_text(raw: bytes, data_id: int) -> PhoneFrame:
     if len(text) >= TEXT_ROW_CHARS:
         notes.append(
             f"{len(text)} characters: this fills the packet's text field, so "
-            "nothing was truncated here. The cluster's display is narrower "
-            "still - two rows of ten cells, counted off the segment grid in "
-            "the owner's manual - so more than ten characters per packet has to "
-            "be wrapped, scrolled or dropped by the cluster."
+            "nothing was truncated here. The simulator models line capacities "
+            "of ten and twelve characters; hardware capture is still needed "
+            "to confirm how the cluster places a 17-character packet."
         )
     if get_u8(raw, 19) != END_BYTE:
         notes.append(f"byte 19 is 0x{get_u8(raw, 19):02X}, not the 0xFF terminator")

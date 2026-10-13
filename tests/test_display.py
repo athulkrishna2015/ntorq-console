@@ -22,8 +22,6 @@ import pytest
 from ntorq import display, pictograms
 from ntorq.cluster import (
     GAUGE_BARS,
-    TEXT_ROW_CELLS,
-    TEXT_ROWS,
     ClusterState,
     Mode,
     SegIcon,
@@ -178,22 +176,21 @@ class TestTextArea:
         state = ClusterState()
         state.announce("Example Road")
         svg = render(state, show_debug_overlay=True)
-        assert f"{TEXT_ROW_CELLS} cells x {TEXT_ROWS} rows" in svg
+        assert "line 1 = 10 cells; line 2 = 12 cells" in svg
 
     def test_the_overlay_reports_characters_that_cannot_be_shown(self):
-        """Twenty-five characters into a twenty-cell area: five have nowhere to
-        go, and the count is the finding."""
+        """Twenty-five characters exceed the 22 cells across the unequal lines."""
         state = ClusterState()
         state.announce("A" * 25)
         svg = render(state, show_debug_overlay=True)
-        assert "5 character(s) have nowhere to go" in svg
+        assert "3 character(s) have nowhere to go" in svg
 
     def test_overflow_is_reported_without_the_overlay_too(self):
         """A message silently vanishing is exactly what this tool exists to
         make impossible to miss."""
         state = ClusterState()
         state.announce("A" * 25)
-        assert "+5 dropped" in render(state)
+        assert "+3 dropped" in render(state)
 
     def test_a_message_that_fits_reports_nothing(self):
         state = ClusterState()
@@ -206,6 +203,17 @@ class TestTextArea:
         assert dropped == 0
         assert lines == ["CALL FROM", "9863571861"]
 
+    def test_first_and_second_lines_have_different_capacities(self):
+        first, dropped = display._wrap_to_cells("A" * 17)
+        assert first == ["A" * 10, "A" * 7]
+        assert dropped == 0
+
+        second = display._wrap_to_cells("A" * 17, start_line=1)
+        assert second == (["A" * 12], 5)
+
+    def test_a_full_second_line_caps_at_twelve_characters(self):
+        assert display._wrap_to_cells("A" * 13, start_line=1) == (["A" * 12], 1)
+
     def test_wrapping_does_not_split_a_number_across_rows(self):
         """A phone number split across a row boundary would be unreadable, and
         unreadable on a dash at 100 km/h is a hazard."""
@@ -216,7 +224,7 @@ class TestTextArea:
 
     def test_wrapping_counts_what_it_could_not_place(self):
         _, dropped = display._wrap_to_cells("A" * 25)
-        assert dropped == 5
+        assert dropped == 3
 
     def test_an_empty_message_yields_no_lines(self):
         lines, dropped = display._wrap_to_cells("")

@@ -83,34 +83,23 @@ is a switch you can flip.
 
 ## Findings this produced
 
-### The text area is ten cells wide, not seventeen
+### The text area is asymmetric: 10 characters on line 1, 12 on line 2
 
-Counted off the segment grid in TVS's own display-test illustration, where every
-segment is lit: **two rows of ten character cells**. Two independent checks
-support it. `CALL FROM 9863571861`, a real message the manual lists, is exactly
-twenty characters — it fills the area to the character. And the reference
-navigation implementation writes `850m`, `12km`, `45m`, `1h 20m` right-aligned
-into eleven-character strings.
+Per the cluster reference supplied for the display: **line 1 has 10 characters;
+line 2 has 12**. The simulator keeps those capacities distinct instead of
+assuming a uniform grid.
 
-TVSRideCompanion's `PacketBuilder` sends **seventeen** characters per row and
-treats the row as a single seventeen-wide line. Seventeen does not fit in ten
-cells. Whether the cluster wraps it, scrolls it, or truncates it is established
-by nothing that has been observed.
+TVSRideCompanion's `PacketBuilder` carries 17 characters in its fixed-size text
+field. That exceeds line 1 and also exceeds line 2 when sent as one line. How the
+real cluster places, wraps, scrolls or truncates the packet still needs a live
+hardware capture.
 
-The display reports this rather than hiding it. Turn on **debug overlay** and
-the dropped-character count appears on the face:
+The debug overlay labels both line capacities separately. The simulator wraps
+text into ten characters on line 1 and up to twelve on line 2 as a useful
+development model, not as a claim that the real firmware wraps identically.
 
-```
-text area: 10 cells x 2 rows; 7 character(s) have nowhere to go
-```
-
-### `CONNECTION SUCCESSFUL` does not fit either
-
-The manual says the cluster shows `CONNECTION SUCCESSFUL` for three seconds.
-That is 21 characters into 20 cells. The cluster has solved this problem for
-its own messages somehow — and how it does is what a capture would reveal.
-`tests/test_protocol.py` records the mismatch explicitly rather than rounding
-it away.
+`CONNECTION SUCCESSFUL` is 21 characters and therefore needs both lines in this
+model. Exact hardware placement/timing still requires capture confirmation.
 
 ### The outbound byte order is not settled
 
